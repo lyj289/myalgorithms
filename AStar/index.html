@@ -54,7 +54,7 @@
     <div id="btndiv">
         <button class="button" onclick="findPath()">开始</button>
         <button class="button" onclick="tag = 2">设置起点</button>
-        <button class="button" onclick="tag = 3">设置结点</button>
+        <button class="button" onclick="tag = 3">设置终点</button>
         <button class="button" onclick="tag = 1">设置围墙</button>
     </div>
     <br>
@@ -78,6 +78,7 @@
                 this.val = val;                
                 this.g = 0;
                 this.h = 0;        
+                this.parent = null;
             }
             get f() {
                 return this.g + this.h;
@@ -96,6 +97,16 @@
 
                     for (var j = 0; j < rows; j++) {
                         this.grid[i][j] = new Spot(i, j);
+                    }
+                }
+            }
+            reset(){
+                for (var i = 0; i < this.cols; i++) {
+                    for (var j = 0; j < this.rows; j++) {
+                        let cg = this.grid[i][j];
+                        cg.g = 0;
+                        cg.h = 0;
+                        cg.parent = null;
                     }
                 }
             }
@@ -264,8 +275,8 @@
             openList  = [];
             closeList = [];
             path = [];
-
             openList.push(start);
+            map.reset();
 
             let finish = 0;
             while(finish !==1) {
