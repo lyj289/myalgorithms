@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>A*寻路算法</title>
+    <style>
+        #wraper{
+            font-size: 0;
+        }
+        .spot{
+            display: inline-block;
+            *display: inline;
+            *zoom: 1;
+            background-color: white;
+            border: 1px solid;
+            width: 30px;
+            height: 30px;
+            margin-left: -1px;
+        }
+        .col{
+            margin-bottom: -1px
+        }
+        .path{
+            background-color: red;
+        }
+        .wall{
+            background-color: gray;
+        }
+        .start{
+            background-color: green;
+        }
+        .end{
+            background-color: yellow;
+        }
+        .button{
+            display: inline-block;
+            border: none;
+            font-weight: 300;
+            border-radius: 4px;
+            font-size: 12px;
+            height: 30px;
+            line-height: 30px;
+            padding: 0 30px;
+            background-color: #1B9AF7;
+            border-color: #1B9AF7;
+            color: #fff;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="wraper"> </div>
+    <br>
+    <div id="btndiv">
+        <button class="button" onclick="findPath()">开始</button>
+        <button class="button" onclick="tag = 2">设置起点</button>
+        <button class="button" onclick="tag = 3">设置结点</button>
+        <button class="button" onclick="tag = 1">设置围墙</button>
+    </div>
+    <br>
+    <div>
+        使用A*算法，寻找最短路径
+        <br>
+        1. 选择【设置**】操作，2. 点击网格点，更新起点、终点、围墙点
+        <br>
+        2. 目前只考虑了上下左右4个方向
+        <br>
+        3. 使用曼哈顿距离
+        <br>
+        4. 参考<a href="http://qiao.github.io/PathFinding.js/visual/">PathFinding</a> <a href="https://codingtrain.github.io/AStar/">AStar</a>
+    </div>
+    <script>
+
+        class Spot {
+            constructor(x, y, val = 0){
+                this.x = x;
+                this.y = y;
+                this.val = val;                
+                this.g = 0;
+                this.h = 0;        
+            }
+            get f() {
+                return this.g + this.h;
+            }
+            
+        }
+
+        class TMap {
+            constructor(rows, cols) {
+                this.cols = cols;
+                this.rows = rows;
+                this.grid = [];
+                this.walls = [];
+                for (var i = 0; i < cols; i++) {
+                    this.grid[i] = [];
+
+                    for (var j = 0; j < rows; j++) {
+                        this.grid[i][j] = new Spot(i, j);
+                    }
+                }
+            }
+            setWall(x, y) {
+                let grid = this.grid[x][y];
+                grid.val = 1;
+                this.walls.push(grid);
+            }
+            removeWall(x, y) {
+                let grid = this.grid[x][y];
+                if (grid.val) {
+                    grid.val = 0;
+                    removeFromArray(this.walls, grid);
+                }
+            }
+            getNeighbor(current) {
+                let {x, y} = current;
+                let top    = this.grid[x] && this.grid[x][y - 1];
+                let bottom = this.grid[x] && this.grid[x][y + 1];
+                let left   = this.grid[x - 1] && this.grid[x - 1][y];
+                let right  = this.grid[x + 1] && this.grid[x + 1][y];
+                
+                let ret = [];
+                if (top) {
+                    ret.push(top);
+                }
+                if (bottom) {
+                    ret.push(bottom);
+                }
+                if (left) {
+                    ret.push(left);
+                }
+                if (right) {
+                    ret.push(right);
+                }
+                return ret
+            }
+        }
+        
+        function removeFromArray(arr, elt) {
+            // Could use indexOf here instead to be more efficient
+            for (var i = arr.length - 1; i >= 0; i--) {
+                if (arr[i] == elt) {
+                    arr.splice(i, 1);
+                }
+            }
+        }
+
+        // menhaden
+        function getDistance(current, near){
+
+            let dx = Math.abs(current.x - near.x);
+            let dy = Math.abs(current.y - near.y);
+            return dx * 10 + dy * 10
+        }
+
+        function formatPrint(){
+            let html = '';
+            for (var i = 0; i < grid.length; i++) {
+                html += '<div class="col">';
+                for (var j = 0; j < grid[i].length; j++) {
+                    let classname = '';
+                    let tmp = grid[i][j];
+
+
+                    if (path.includes(tmp)) {
+                        classname = 'path';
+                    }
+
+                    if (tmp === start) {
+                        classname = 'start';
+                    }
+                    if (tmp === end) {
+                        classname = 'end';
+                    }
+
+                    if (map.walls.includes(tmp)) {
+                        classname = 'wall';
+                    }
+                    html += `<div class="spot ${classname}" onclick="updatePath(this, ${i}, ${j})"></div>`;
+                }
+                html += '</div>';
+            }
+
+            document.getElementById('wraper').innerHTML = html;
+        }
+
+        let map = new TMap(20, 15);
+        let walls = [
+            [2, 4],
+            [3, 4],
+            [4, 4],
+            [5, 4],
+            [6, 4],
+            [0, 7],
+            [1, 7],
+            [2, 7],
+            [3, 7],
+            [4, 7],
+            [5, 7],
+            [6, 7],
+            [7, 7],
+        ];
+        walls.forEach(k => {
+            map.setWall(...k)
+        })
+
+        // 1围墙，2起点，3终点
+        let tag = 1;
+        // 设置起始点
+        let grid = map.grid;
+        var start = grid[2][3];
+        var end   = grid[2][9];
+        let path = [];
+        let openList  = [];
+        let closeList = [];
+        openList.push(start);
+
+        formatPrint();
+
+        let current;
+        function step() {
+            if (!openList.length) {
+                console.log('no find result');
+                return 1;
+            }
+            let winner = 0;
+
+            for (var i = 1; i < openList.length; i++) {
+                if (openList[i].f < openList[winner].f) {
+                    winner = i
+                }
+            }
+
+            current = openList[winner];
+
+            if (current === end) {
+                console.log('ok, find');
+                return 1;
+            }
+
+            let nears = map.getNeighbor(current);
+            for (var k = 0; k < nears.length; k++) {
+                let near = nears[k];
+                let tmpg = current.g + getDistance(near, current);
+                if (!openList.includes(near) 
+                    && !closeList.includes(near)
+                    && !near.val) {
+                    openList.push(near);
+                } else if (tmpg >= near.g){
+                    continue
+                }
+
+                near.g = tmpg;
+                near.h = getDistance(near, end);
+                near.parent = current;
+
+            }
+
+            removeFromArray(openList, current);
+            closeList.push(current);
+            return 0;
+        }
+
+        function findPath(){
+            openList  = [];
+            closeList = [];
+            path = [];
+
+            openList.push(start);
+
+            let finish = 0;
+            while(finish !==1) {
+                finish = step()
+            }
+            // 计算路径
+            caclPath();
+            formatPrint();
+        }
+
+        function caclPath(){
+            while (current.parent) {
+                path.push(current);
+                current = current.parent;
+            }
+            path.push(start)
+        }
+        
+        function updatePath(ele, i, j){
+            if (tag === 1) {
+                if (grid[i][j].val) {
+                    map.removeWall(i, j)
+                } else {
+                    map.setWall(i, j);
+                }
+                ele.classList.toggle('wall')
+            }
+            if (tag === 2) {
+                document.getElementsByClassName('start')[0].classList.toggle('start')
+                ele.classList.toggle('start');
+                start = grid[i][j];
+            }
+            if (tag === 3) {
+                document.getElementsByClassName('end')[0].classList.toggle('end')
+                ele.classList.toggle('end');
+                end = grid[i][j];
+            }
+
+        }
+    </script>
+</body>
+</html>
